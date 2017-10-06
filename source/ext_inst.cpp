@@ -1,185 +1,93 @@
 // Copyright (c) 2015-2016 The Khronos Group Inc.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and/or associated documentation files (the
-// "Materials"), to deal in the Materials without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Materials, and to
-// permit persons to whom the Materials are furnished to do so, subject to
-// the following conditions:
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Materials.
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
-// MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
-// KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
-// SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
-//    https://www.khronos.org/registry/
-//
-// THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-// CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-// MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "ext_inst.h"
 
-#include <string.h>
+#include <cassert>
+#include <cstring>
 
+#include "spirv/1.0/GLSL.std.450.h"
+#include "spirv/1.0/OpenCL.std.h"
 #include "spirv_definition.h"
 
-/// Generate a spv_ext_inst_desc_t literal for a GLSL std450 extended
-/// instruction with one/two/three <id> parameter(s).
-#define GLSL450Inst1(name) \
-  #name, GLSLstd450::GLSLstd450##name, 0, { SPV_OPERAND_TYPE_ID }
-#define GLSL450Inst1Cap(name, cap)                        \
-  #name, GLSLstd450::GLSLstd450##name,                    \
-          SPV_CAPABILITY_AS_MASK(SpvCapability##cap), { \
-    SPV_OPERAND_TYPE_ID                                   \
-  }
-#define GLSL450Inst2(name)                   \
-  #name, GLSLstd450::GLSLstd450##name, 0, {  \
-    SPV_OPERAND_TYPE_ID, SPV_OPERAND_TYPE_ID \
-  }
-#define GLSL450Inst2Cap(name, cap)                  \
-  #name, GLSLstd450::GLSLstd450##name,              \
-      SPV_CAPABILITY_AS_MASK(SpvCapability##cap), { \
-    SPV_OPERAND_TYPE_ID, SPV_OPERAND_TYPE_ID        \
-  }
-#define GLSL450Inst3(name)                                        \
-  #name, GLSLstd450::GLSLstd450##name, 0, {                       \
-    SPV_OPERAND_TYPE_ID, SPV_OPERAND_TYPE_ID, SPV_OPERAND_TYPE_ID \
-  }
+#include "macro.h"
 
-static const spv_ext_inst_desc_t glslStd450Entries[] = {
-    {GLSL450Inst1(Round)},
-    {GLSL450Inst1(RoundEven)},
-    {GLSL450Inst1(Trunc)},
-    {GLSL450Inst1(FAbs)},
-    {GLSL450Inst1(SAbs)},
-    {GLSL450Inst1(FSign)},
-    {GLSL450Inst1(SSign)},
-    {GLSL450Inst1(Floor)},
-    {GLSL450Inst1(Ceil)},
-    {GLSL450Inst1(Fract)},
-    {GLSL450Inst1(Radians)},
-    {GLSL450Inst1(Degrees)},
-    {GLSL450Inst1(Sin)},
-    {GLSL450Inst1(Cos)},
-    {GLSL450Inst1(Tan)},
-    {GLSL450Inst1(Asin)},
-    {GLSL450Inst1(Acos)},
-    {GLSL450Inst1(Atan)},
-    {GLSL450Inst1(Sinh)},
-    {GLSL450Inst1(Cosh)},
-    {GLSL450Inst1(Tanh)},
-    {GLSL450Inst1(Asinh)},
-    {GLSL450Inst1(Acosh)},
-    {GLSL450Inst1(Atanh)},
-    {GLSL450Inst2(Atan2)},
-    {GLSL450Inst2(Pow)},
-    {GLSL450Inst1(Exp)},
-    {GLSL450Inst1(Log)},
-    {GLSL450Inst1(Exp2)},
-    {GLSL450Inst1(Log2)},
-    {GLSL450Inst1(Sqrt)},
-    {GLSL450Inst1(InverseSqrt)},
-    {GLSL450Inst1(Determinant)},
-    {GLSL450Inst1(MatrixInverse)},
-    {GLSL450Inst2(Modf)},
-    {GLSL450Inst1(ModfStruct)},
-    {GLSL450Inst2(FMin)},
-    {GLSL450Inst2(UMin)},
-    {GLSL450Inst2(SMin)},
-    {GLSL450Inst2(FMax)},
-    {GLSL450Inst2(UMax)},
-    {GLSL450Inst2(SMax)},
-    {GLSL450Inst3(FClamp)},
-    {GLSL450Inst3(UClamp)},
-    {GLSL450Inst3(SClamp)},
-    {GLSL450Inst3(FMix)},
-    {GLSL450Inst3(IMix)},
-    {GLSL450Inst2(Step)},
-    {GLSL450Inst3(SmoothStep)},
-    {GLSL450Inst3(Fma)},
-    {GLSL450Inst2(Frexp)},
-    {GLSL450Inst1(FrexpStruct)},
-    {GLSL450Inst2(Ldexp)},
-    {GLSL450Inst1(PackSnorm4x8)},
-    {GLSL450Inst1(PackUnorm4x8)},
-    {GLSL450Inst1(PackSnorm2x16)},
-    {GLSL450Inst1(PackUnorm2x16)},
-    {GLSL450Inst1(PackHalf2x16)},
-    {GLSL450Inst1Cap(PackDouble2x32, Float64)},
-    {GLSL450Inst1(UnpackSnorm2x16)},
-    {GLSL450Inst1(UnpackUnorm2x16)},
-    {GLSL450Inst1(UnpackHalf2x16)},
-    {GLSL450Inst1(UnpackSnorm4x8)},
-    {GLSL450Inst1(UnpackUnorm4x8)},
-    {GLSL450Inst1(UnpackDouble2x32)},
-    {GLSL450Inst1(Length)},
-    {GLSL450Inst2(Distance)},
-    {GLSL450Inst2(Cross)},
-    {GLSL450Inst1(Normalize)},
-    {GLSL450Inst3(FaceForward)},
-    {GLSL450Inst2(Reflect)},
-    {GLSL450Inst3(Refract)},
-    {GLSL450Inst1(FindILsb)},
-    {GLSL450Inst1(FindSMsb)},
-    {GLSL450Inst1(FindUMsb)},
-    {GLSL450Inst1Cap(InterpolateAtCentroid, InterpolationFunction)},
-    {GLSL450Inst2Cap(InterpolateAtSample, InterpolationFunction)},
-    {GLSL450Inst2Cap(InterpolateAtOffset, InterpolationFunction)},
-    {GLSL450Inst2(NMin)},
-    {GLSL450Inst2(NMax)},
-    {GLSL450Inst2(NClamp)},
+static const spv_ext_inst_desc_t glslStd450Entries_1_0[] = {
+#include "glsl.std.450.insts-1.0.inc"
 };
 
-static const spv_ext_inst_desc_t openclEntries[] = {
-#define ExtInst(Name, Opcode, OperandList) \
-  { #Name, Opcode, 0, OperandList }           \
-  ,
-#define EmptyList \
-  {}
-#define List(...) \
-  { __VA_ARGS__ }
-#define OperandId SPV_OPERAND_TYPE_ID
-#define OperandLiteralNumber SPV_OPERAND_TYPE_LITERAL_INTEGER
-#define OperandFPRoundingMode SPV_OPERAND_TYPE_FP_ROUNDING_MODE
-#define OperandVariableIds SPV_OPERAND_TYPE_VARIABLE_ID
-#include "opencl_std_ext_inst.inc"
-#undef ExtList
-#undef EmptyList
-#undef List
-#undef OperandId
-#undef OperandLiteralNumber
-#undef OperandFPRoundingMode
-#undef OperandVariableIds
+static const spv_ext_inst_desc_t openclEntries_1_0[] = {
+#include "opencl.std.insts-1.0.inc"
 };
 
-spv_result_t spvExtInstTableGet(spv_ext_inst_table* pExtInstTable) {
+static const spv_ext_inst_desc_t spv_amd_shader_explicit_vertex_parameter_entries[] = {
+#include "spv-amd-shader-explicit-vertex-parameter.insts.inc"
+};
+
+static const spv_ext_inst_desc_t spv_amd_shader_trinary_minmax_entries[] = {
+#include "spv-amd-shader-trinary-minmax.insts.inc"
+};
+
+static const spv_ext_inst_desc_t spv_amd_gcn_shader_entries[] = {
+#include "spv-amd-gcn-shader.insts.inc"
+};
+
+static const spv_ext_inst_desc_t spv_amd_shader_ballot_entries[] = {
+#include "spv-amd-shader-ballot.insts.inc"
+};
+
+spv_result_t spvExtInstTableGet(spv_ext_inst_table* pExtInstTable,
+                                spv_target_env env) {
   if (!pExtInstTable) return SPV_ERROR_INVALID_POINTER;
 
-  static const spv_ext_inst_group_t groups[] = {
-      {SPV_EXT_INST_TYPE_GLSL_STD_450,
-       static_cast<uint32_t>(sizeof(glslStd450Entries) /
-                             sizeof(spv_ext_inst_desc_t)),
-       glslStd450Entries},
-      {SPV_EXT_INST_TYPE_OPENCL_STD,
-       static_cast<uint32_t>(sizeof(openclEntries) /
-                             sizeof(spv_ext_inst_desc_t)),
-       openclEntries},
+  static const spv_ext_inst_group_t groups_1_0[] = {
+      {SPV_EXT_INST_TYPE_GLSL_STD_450, ARRAY_SIZE(glslStd450Entries_1_0),
+       glslStd450Entries_1_0},
+      {SPV_EXT_INST_TYPE_OPENCL_STD, ARRAY_SIZE(openclEntries_1_0),
+       openclEntries_1_0},
+      {SPV_EXT_INST_TYPE_SPV_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER,
+       ARRAY_SIZE(spv_amd_shader_explicit_vertex_parameter_entries), spv_amd_shader_explicit_vertex_parameter_entries},
+      {SPV_EXT_INST_TYPE_SPV_AMD_SHADER_TRINARY_MINMAX,
+       ARRAY_SIZE(spv_amd_shader_trinary_minmax_entries), spv_amd_shader_trinary_minmax_entries},
+      {SPV_EXT_INST_TYPE_SPV_AMD_GCN_SHADER,
+       ARRAY_SIZE(spv_amd_gcn_shader_entries), spv_amd_gcn_shader_entries},
+      {SPV_EXT_INST_TYPE_SPV_AMD_SHADER_BALLOT,
+       ARRAY_SIZE(spv_amd_shader_ballot_entries), spv_amd_shader_ballot_entries},
   };
 
-  static const spv_ext_inst_table_t table = {
-      static_cast<uint32_t>(sizeof(groups) / sizeof(spv_ext_inst_group_t)),
-      groups};
+  static const spv_ext_inst_table_t table_1_0 = {ARRAY_SIZE(groups_1_0),
+                                                 groups_1_0};
 
-  *pExtInstTable = &table;
-
-  return SPV_SUCCESS;
+  switch (env) {
+    // The extended instruction sets are all version 1.0 so far.
+    case SPV_ENV_UNIVERSAL_1_0:
+    case SPV_ENV_VULKAN_1_0:
+    case SPV_ENV_UNIVERSAL_1_1:
+    case SPV_ENV_UNIVERSAL_1_2:
+    case SPV_ENV_OPENCL_2_1:
+    case SPV_ENV_OPENCL_2_2:
+    case SPV_ENV_OPENGL_4_0:
+    case SPV_ENV_OPENGL_4_1:
+    case SPV_ENV_OPENGL_4_2:
+    case SPV_ENV_OPENGL_4_3:
+    case SPV_ENV_OPENGL_4_5:
+      *pExtInstTable = &table_1_0;
+      return SPV_SUCCESS;
+    default:
+      assert(0 && "Unknown spv_target_env in spvExtInstTableGet()");
+      return SPV_ERROR_INVALID_TABLE;
+  }
 }
 
 spv_ext_inst_type_t spvExtInstImportTypeGet(const char* name) {
@@ -190,6 +98,18 @@ spv_ext_inst_type_t spvExtInstImportTypeGet(const char* name) {
   }
   if (!strcmp("OpenCL.std", name)) {
     return SPV_EXT_INST_TYPE_OPENCL_STD;
+  }
+  if (!strcmp("SPV_AMD_shader_explicit_vertex_parameter", name)) {
+    return SPV_EXT_INST_TYPE_SPV_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER;
+  }
+  if (!strcmp("SPV_AMD_shader_trinary_minmax", name)) {
+    return SPV_EXT_INST_TYPE_SPV_AMD_SHADER_TRINARY_MINMAX;
+  }
+  if (!strcmp("SPV_AMD_gcn_shader", name)) {
+    return SPV_EXT_INST_TYPE_SPV_AMD_GCN_SHADER;
+  }
+  if (!strcmp("SPV_AMD_shader_ballot", name)) {
+    return SPV_EXT_INST_TYPE_SPV_AMD_SHADER_BALLOT;
   }
   return SPV_EXT_INST_TYPE_NONE;
 }
@@ -202,14 +122,13 @@ spv_result_t spvExtInstTableNameLookup(const spv_ext_inst_table table,
   if (!pEntry) return SPV_ERROR_INVALID_POINTER;
 
   for (uint32_t groupIndex = 0; groupIndex < table->count; groupIndex++) {
-    auto& group = table->groups[groupIndex];
-    if (type == group.type) {
-      for (uint32_t index = 0; index < group.count; index++) {
-        auto& entry = group.entries[index];
-        if (!strcmp(name, entry.name)) {
-          *pEntry = &table->groups[groupIndex].entries[index];
-          return SPV_SUCCESS;
-        }
+    const auto& group = table->groups[groupIndex];
+    if (type != group.type) continue;
+    for (uint32_t index = 0; index < group.count; index++) {
+      const auto& entry = group.entries[index];
+      if (!strcmp(name, entry.name)) {
+        *pEntry = &entry;
+        return SPV_SUCCESS;
       }
     }
   }
@@ -225,14 +144,13 @@ spv_result_t spvExtInstTableValueLookup(const spv_ext_inst_table table,
   if (!pEntry) return SPV_ERROR_INVALID_POINTER;
 
   for (uint32_t groupIndex = 0; groupIndex < table->count; groupIndex++) {
-    auto& group = table->groups[groupIndex];
-    if (type == group.type) {
-      for (uint32_t index = 0; index < group.count; index++) {
-        auto& entry = group.entries[index];
-        if (value == entry.ext_inst) {
-          *pEntry = &table->groups[groupIndex].entries[index];
-          return SPV_SUCCESS;
-        }
+    const auto& group = table->groups[groupIndex];
+    if (type != group.type) continue;
+    for (uint32_t index = 0; index < group.count; index++) {
+      const auto& entry = group.entries[index];
+      if (value == entry.ext_inst) {
+        *pEntry = &entry;
+        return SPV_SUCCESS;
       }
     }
   }
